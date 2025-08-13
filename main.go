@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -312,6 +313,23 @@ func analyze(symbol string, ts *techan.TimeSeries) string {
 }
 
 func main() {
+	// Check for backtest flag first before parsing
+	for _, arg := range os.Args[1:] {
+		if arg == "-backtest" {
+			RunBacktestCLI()
+			return
+		}
+	}
+	
+	// If not backtest, parse flags normally
+	backtestFlag := flag.Bool("backtest", false, "Run backtest mode")
+	flag.Parse()
+	
+	if *backtestFlag {
+		RunBacktestCLI()
+		return
+	}
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error cargando .env")

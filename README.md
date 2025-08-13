@@ -9,6 +9,9 @@ A Go-based cryptocurrency trading bot that analyzes market data using technical 
 - 🤖 **Telegram Integration**: Sends trading signals directly to your Telegram chat
 - 📈 **Multiple Pairs**: Supports analysis of multiple cryptocurrency pairs simultaneously
 - ⚙️ **Configurable**: Customizable intervals and signal parameters
+- 📈 **Backtesting System**: Test your strategy against historical data
+- 📊 **Performance Analytics**: Detailed metrics including Sharpe ratio, drawdown, win rate
+- 💰 **Portfolio Simulation**: Realistic trading simulation with fees and slippage
 
 ## Setup Instructions
 
@@ -137,6 +140,87 @@ The bot will:
 
 - **BUY Signal**: EMA9 crosses above EMA21, RSI < 70, MACD > Signal
 - **SELL Signal**: EMA9 crosses below EMA21, RSI > 30, MACD < Signal
+
+## 📈 Backtesting System
+
+The bot now includes a comprehensive backtesting system to test your trading strategy against historical data.
+
+### Run a Backtest
+
+```bash
+# Basic backtest with default settings
+go run . -backtest
+
+# Custom backtest with specific parameters
+go run . -backtest -symbol=ETHUSDT -balance=5000 -fee=0.0015
+
+# Test with different intervals and data points
+go run . -backtest -symbol=ADAUSDT -interval=1h -limit=1000
+```
+
+### Backtest Options
+
+- `-symbol`: Trading pair to test (default: BTCUSDT)
+- `-balance`: Initial balance in USD (default: 10000)
+- `-fee`: Transaction fee percentage (default: 0.001 = 0.1%)
+- `-interval`: Candle interval: 1m, 5m, 15m, 1h, 4h, 1d (default: 15m)
+- `-limit`: Number of historical candles to fetch (default: 500)
+- `-help`: Show help message
+
+### Example Backtest Results
+
+```
+================================================================================
+                    BACKTEST RESULTS - BTCUSDT
+================================================================================
+📊 PERFORMANCE OVERVIEW
+   Initial Balance:      $10000.00
+   Final Value:          $12750.50
+   Total Return:         $2750.50 (27.51%)
+   Buy & Hold Return:    $1850.25 (18.50%)
+   Alpha vs Buy & Hold:  9.01%
+   Max Drawdown:         $1250.00 (10.85%)
+   Sharpe Ratio:         1.428
+   Duration:             62 days
+
+📈 TRADE STATISTICS
+   Total Trades:         24
+   Winning Trades:       16
+   Losing Trades:        8
+   Win Rate:             66.7%
+   Average Win:          $285.50
+   Average Loss:         $142.75
+   Profit Factor:        2.00
+
+📋 RECENT TRADES (Last 10)
+   🟢 BUY 0.234567 BTCUSDT at $42750.00 (2024-08-10 14:30)
+   🔴 SELL 0.234567 BTCUSDT at $44200.00 (2024-08-12 09:15)
+   ...
+
+🏆 STRATEGY RATING: EXCELLENT
+================================================================================
+```
+
+### Performance Metrics Explained
+
+- **Total Return**: Absolute profit/loss vs initial balance
+- **Buy & Hold Return**: What you would have made just buying and holding
+- **Alpha**: How much better (or worse) your strategy performed vs buy & hold
+- **Max Drawdown**: Largest peak-to-valley loss during the period
+- **Sharpe Ratio**: Risk-adjusted return metric (higher is better)
+- **Win Rate**: Percentage of profitable trades
+- **Profit Factor**: Ratio of total wins to total losses
+
+### Save Results
+
+After running a backtest, you'll be prompted to save results to a file:
+
+```
+💾 Save results to file? (y/N): y
+✅ Results saved to: backtest_BTCUSDT_20240813_143052.txt
+```
+
+The saved file contains the complete results plus a detailed trade log.
 
 ## Troubleshooting
 
