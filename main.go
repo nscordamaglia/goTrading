@@ -313,10 +313,13 @@ func analyze(symbol string, ts *techan.TimeSeries) string {
 }
 
 func main() {
-	// Check for backtest flag first before parsing
+	// Check for special flags first before parsing
 	for _, arg := range os.Args[1:] {
 		if arg == "-backtest" {
 			RunBacktestCLI()
+			return
+		} else if arg == "-ml" {
+			RunMLCLI()
 			return
 		}
 	}
