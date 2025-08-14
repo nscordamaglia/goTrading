@@ -5,8 +5,19 @@ import (
     "github.com/sdcoffey/techan"
 )
 
-// analyze produces a simple BUY/SELL/HOLD signal using EMA cross, RSI, and MACD
+// UseMLAnalyze toggles ML-based analysis when true. Defaults to false.
+var UseMLAnalyze bool
+
+// analyze dispatches to either the classic rule-based analysis or ML-based analysis.
 func analyze(symbol string, ts *techan.TimeSeries) string {
+    if UseMLAnalyze {
+        return analyzeML(symbol, ts)
+    }
+    return analyzeClassic(symbol, ts)
+}
+
+// analyzeClassic produces a simple BUY/SELL/HOLD signal using EMA cross, RSI, and MACD
+func analyzeClassic(symbol string, ts *techan.TimeSeries) string {
     closePrices := techan.NewClosePriceIndicator(ts)
     emaShort := techan.NewEMAIndicator(closePrices, 9)
     emaLong := techan.NewEMAIndicator(closePrices, 21)
@@ -42,6 +53,12 @@ func analyze(symbol string, ts *techan.TimeSeries) string {
         return "SELL"
     }
 
+    return "HOLD"
+}
+
+// analyzeML is a placeholder for future ML-based analysis. Returns HOLD until wired to a model.
+func analyzeML(symbol string, ts *techan.TimeSeries) string {
+    // TODO: plug in an ML predictor here in the future (e.g., via a global predictor or DI)
     return "HOLD"
 }
 

@@ -284,8 +284,9 @@ func main() {
 		}
 	}
 	
-	// If not backtest, parse flags normally
-	backtestFlag := flag.Bool("backtest", false, "Run backtest mode")
+    // If not backtest, parse flags normally
+    backtestFlag := flag.Bool("backtest", false, "Run backtest mode")
+    useMLAnalyzeFlag := flag.Bool("useml", false, "Use ML-based analyze() in live/backtest modes")
 	flag.Parse()
 	
 	if *backtestFlag {
@@ -293,12 +294,19 @@ func main() {
 		return
 	}
 
-	err := godotenv.Load()
+    err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error cargando .env")
 	}
 
-	// Initialize Binance client
+    // Toggle ML analyze() via flag or env
+    useMLEnv := strings.ToLower(os.Getenv("USE_ML_ANALYZE"))
+    if *useMLAnalyzeFlag || useMLEnv == "true" || useMLEnv == "1" || useMLEnv == "yes" {
+        UseMLAnalyze = true
+        log.Printf("ML analyze() enabled (flag/env)")
+    }
+
+    // Initialize Binance client
 	apiKey := os.Getenv("BINANCE_API_KEY")
 	secretKey := os.Getenv("BINANCE_SECRET_KEY")
 	if apiKey == "" || secretKey == "" {

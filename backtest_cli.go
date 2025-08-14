@@ -1,6 +1,6 @@
 package main
 
-	import (
+import (
 	"fmt"
 	"log"
 	"os"
@@ -32,11 +32,23 @@ func RunBacktestCLI() {
 	fee := 0.001
 	interval := "15m"
 	dataLimit := 500
+	// analysis mode toggle (classic vs ML)
+	useML := false
 
 	// Simple argument parsing
 	args := os.Args[1:] // Skip program name
 	for i, arg := range args {
 		if arg == "-backtest" {
+			continue
+		}
+		if arg == "-useml" {
+			useML = true
+			continue
+		}
+		if strings.HasPrefix(arg, "-useml=") {
+			v := strings.TrimPrefix(arg, "-useml=")
+			v = strings.ToLower(strings.TrimSpace(v))
+			useML = (v == "true" || v == "1" || v == "yes")
 			continue
 		}
 		if strings.HasPrefix(arg, "-symbol=") {
@@ -71,7 +83,20 @@ func RunBacktestCLI() {
 			if val, err := strconv.Atoi(args[i+1]); err == nil {
 				dataLimit = val
 			}
+		} else if arg == "-useml" && i+1 < len(args) {
+			v := strings.ToLower(strings.TrimSpace(args[i+1]))
+			useML = (v == "true" || v == "1" || v == "yes")
 		}
+	}
+
+	// Env override for analyze mode
+	if v := strings.ToLower(os.Getenv("USE_ML_ANALYZE")); v == "true" || v == "1" || v == "yes" {
+		useML = true
+	}
+	// set global toggle
+	if useML {
+		UseMLAnalyze = true
+		log.Printf("Backtest analyze(): ML mode enabled")
 	}
 
 	// Initialize Binance client
@@ -121,12 +146,13 @@ func printBacktestHelp() {
 USAGE:
   go run . -backtest [OPTIONS]
 
-OPTIONS:
+ OPTIONS:
   -symbol      Trading pair to test (default: BTCUSDT)
   -balance     Initial balance in USD (default: 10000)
   -fee         Transaction fee percentage (default: 0.001)
   -interval    Candle interval: 1m, 5m, 15m, 1h, 4h, 1d (default: 15m)
   -limit       Number of historical candles (default: 500)
+  -useml       Use ML-based analyze() instead of classic rules (also via USE_ML_ANALYZE env)
   -help        Show this help message
 
 EXAMPLES:
@@ -164,7 +190,7 @@ func shouldSaveResults() bool {
 func saveBacktestResults(result *BacktestResult) {
 	timestamp := time.Now().Format("20060102_150405")
 	filename := fmt.Sprintf("backtest_%s_%s.txt", result.Symbol, timestamp)
-	
+
 	file, err := os.Create(filename)
 	if err != nil {
 		log.Printf("Error creating results file: %v", err)
@@ -175,9 +201,9 @@ func saveBacktestResults(result *BacktestResult) {
 	// Redirect stdout to file temporarily
 	oldStdout := os.Stdout
 	os.Stdout = file
-	
+
 	PrintBacktestResults(result)
-	
+
 	// Write additional details to file
 	fmt.Fprintf(file, "\n\n📋 DETAILED TRADE LOG:\n")
 	fmt.Fprintf(file, "%s\n", strings.Repeat("-", 80))
@@ -189,7 +215,7 @@ func saveBacktestResults(result *BacktestResult) {
 
 	// Restore stdout
 	os.Stdout = oldStdout
-	
+
 	fmt.Printf("✅ Results saved to: %s\n", filename)
 }
 
@@ -218,26 +244,26 @@ func parseInterval(interval string) (int, error) {
 // runBatchBacktest runs backtests for multiple symbols
 func runBatchBacktest(symbols []string, config BacktestConfig) {
 	fmt.Println("🔄 Running batch backtest...")
-	
+
 	results := make(map[string]*BacktestResult)
-	
+
 	for _, symbol := range symbols {
 		symbol = strings.TrimSpace(strings.ToUpper(symbol))
 		fmt.Printf("\n📊 Testing %s...\n", symbol)
-		
+
 		config.Symbol = symbol
 		engine := NewBacktestEngine(config)
-		
+
 		result, err := engine.RunBacktest()
 		if err != nil {
 			log.Printf("❌ Backtest failed for %s: %v", symbol, err)
 			continue
 		}
-		
+
 		results[symbol] = result
 		fmt.Printf("✅ %s completed: %.2f%% return\n", symbol, result.TotalReturnPct)
 	}
-	
+
 	// Print comparison summary
 	printBatchSummary(results)
 }
@@ -246,26 +272,26 @@ func printBatchSummary(results map[string]*BacktestResult) {
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("                         BATCH BACKTEST SUMMARY")
 	fmt.Println(strings.Repeat("=", 80))
-	
-	fmt.Printf("%-10s %-12s %-12s %-12s %-10s %-8s\n", 
+
+	fmt.Printf("%-10s %-12s %-12s %-12s %-10s %-8s\n",
 		"Symbol", "Return %", "Buy&Hold %", "Alpha %", "Trades", "Win Rate")
 	fmt.Println(strings.Repeat("-", 80))
-	
+
 	bestPerformer := ""
 	bestReturn := -999.0
-	
+
 	for symbol, result := range results {
 		alpha := result.TotalReturnPct - result.BuyAndHoldReturnPct
 		fmt.Printf("%-10s %11.2f%% %11.2f%% %11.2f%% %9d %7.1f%%\n",
 			symbol, result.TotalReturnPct, result.BuyAndHoldReturnPct,
 			alpha, result.TotalTrades, result.WinRate)
-		
+
 		if result.TotalReturnPct > bestReturn {
 			bestReturn = result.TotalReturnPct
 			bestPerformer = symbol
 		}
 	}
-	
+
 	fmt.Println(strings.Repeat("-", 80))
 	fmt.Printf("🏆 Best Performer: %s (%.2f%% return)\n", bestPerformer, bestReturn)
 	fmt.Println(strings.Repeat("=", 80))
