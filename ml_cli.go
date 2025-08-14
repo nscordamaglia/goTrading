@@ -31,11 +31,11 @@ func RunMLCLI() {
 
 	// Parse command line arguments
 	symbol := "BTCUSDT"
-	mode := "train"        // "train", "test", "live"
+	mode := "train" // "train", "test", "live"
 	dataLimit := 1000
 	lookbackPeriod := 500
 	minTrainingPeriod := 100
-	retrainingPeriod := 60  // minutes
+	retrainingPeriod := 60 // minutes
 
 	// Simple argument parsing
 	args := os.Args[1:]
@@ -176,9 +176,9 @@ func runMLTraining(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod i
 
 	// Convert to time series
 	ts := buildTimeSeries(klines)
-	
+
 	fmt.Printf("🔍 Extracting features from %d data points...\n", len(klines))
-	
+
 	// Extract features and prepare training data
 	for i := config.FeatureWindow; i < len(klines)-5; i++ {
 		features := mlModel.ExtractFeatures(ts, i)
@@ -190,7 +190,9 @@ func runMLTraining(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod i
 		if i+5 < len(klines) {
 			currentPrice, _ := strconv.ParseFloat(klines[i].Close, 64)
 			futurePrice, _ := strconv.ParseFloat(klines[i+5].Close, 64)
-			features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			if currentPrice != 0 {
+				features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			}
 		}
 
 		mlModel.AddTrainingData(*features)
@@ -247,7 +249,9 @@ func runMLTesting(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod in
 		if i+5 < len(klines) {
 			currentPrice, _ := strconv.ParseFloat(klines[i].Close, 64)
 			futurePrice, _ := strconv.ParseFloat(klines[i+5].Close, 64)
-			features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			if currentPrice != 0 {
+				features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			}
 		}
 
 		allFeatures = append(allFeatures, *features)
@@ -278,7 +282,7 @@ func runMLTesting(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod in
 
 	for _, testFeatures := range testData {
 		prediction := mlModel.Predict(testFeatures)
-		
+
 		// Check direction accuracy
 		actualDirection := 0
 		if testFeatures.FutureReturn > 0.001 {
@@ -312,13 +316,13 @@ func runMLTesting(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod in
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("                   TEST RESULTS")
 	fmt.Println(strings.Repeat("=", 60))
-	
+
 	accuracy := float64(correct) / float64(len(testData)) * 100
 	fmt.Printf("🎯 Direction Accuracy:    %.2f%%\n", accuracy)
 	fmt.Printf("📊 Test Samples:          %d\n", len(testData))
 	fmt.Printf("💰 ML Strategy Returns:   %.4f\n", predictedReturns)
 	fmt.Printf("💹 Buy & Hold Returns:    %.4f\n", totalReturns)
-	
+
 	if totalReturns != 0 {
 		alpha := (predictedReturns - totalReturns) / math.Abs(totalReturns) * 100
 		fmt.Printf("🚀 Alpha vs Buy & Hold:  %.2f%%\n", alpha)
@@ -359,7 +363,7 @@ func runMLComparison(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod
 	}
 
 	mlModel := NewMLModel(mlConfig)
-	
+
 	// Fetch data for ML
 	klines, err := binanceClient.fetchKlines(symbol, "15m", dataLimit)
 	if err != nil {
@@ -378,7 +382,9 @@ func runMLComparison(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod
 		if i+5 < len(klines) {
 			currentPrice, _ := strconv.ParseFloat(klines[i].Close, 64)
 			futurePrice, _ := strconv.ParseFloat(klines[i+5].Close, 64)
-			features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			if currentPrice != 0 {
+				features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			}
 		}
 
 		mlModel.AddTrainingData(*features)
@@ -395,7 +401,7 @@ func runMLComparison(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod
 	mlTrades := 0
 	mlWins := 0
 
-	for i := len(klines)/2; i < len(klines)-5; i++ {
+	for i := len(klines) / 2; i < len(klines)-5; i++ {
 		features := mlModel.ExtractFeatures(ts, i)
 		if features == nil {
 			continue
@@ -403,7 +409,7 @@ func runMLComparison(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod
 
 		prediction := mlModel.Predict(*features)
 		currentPrice, _ := strconv.ParseFloat(klines[i].Close, 64)
-		
+
 		if prediction.Direction == "BUY" && position == 0 {
 			position = cash / currentPrice
 			cash = 0
@@ -435,7 +441,7 @@ func runMLComparison(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("                    STRATEGY COMPARISON")
 	fmt.Println(strings.Repeat("=", 80))
-	
+
 	fmt.Printf("📊 PERFORMANCE COMPARISON:\n")
 	fmt.Printf("   %-20s   Traditional    ML Strategy\n", "Metric")
 	fmt.Println(strings.Repeat("-", 55))
@@ -443,18 +449,18 @@ func runMLComparison(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod
 	fmt.Printf("   %-20s   %8.2f%%      %8.2f%%\n", "Win Rate", traditionalResult.WinRate, mlWinRate)
 	fmt.Printf("   %-20s   %8d         %8d\n", "Total Trades", traditionalResult.TotalTrades, mlTrades)
 	fmt.Printf("   %-20s   %8.2f%%      %8.2f%%\n", "Max Drawdown", traditionalResult.MaxDrawdownPct, 0.0) // Simplified
-	fmt.Printf("   %-20s   %8.3f        %8.3f\n", "Sharpe Ratio", traditionalResult.SharpeRatio, 0.0) // Simplified
-	
+	fmt.Printf("   %-20s   %8.3f        %8.3f\n", "Sharpe Ratio", traditionalResult.SharpeRatio, 0.0)      // Simplified
+
 	fmt.Println(strings.Repeat("-", 55))
-	
+
 	winner := "Traditional"
 	if mlReturn > traditionalResult.TotalReturnPct {
 		winner = "ML Strategy"
 	}
-	
+
 	fmt.Printf("🏆 Winner: %s\n", winner)
-	fmt.Printf("📈 Performance Difference: %.2f%%\n", mlReturn - traditionalResult.TotalReturnPct)
-	
+	fmt.Printf("📈 Performance Difference: %.2f%%\n", mlReturn-traditionalResult.TotalReturnPct)
+
 	fmt.Println(strings.Repeat("=", 80))
 }
 
@@ -462,7 +468,7 @@ func runMLComparison(symbol string, dataLimit, lookbackPeriod, minTrainingPeriod
 func runMLLiveTrading(symbol string, lookbackPeriod, minTrainingPeriod, retrainingPeriod int) {
 	fmt.Println("🔴 LIVE ML Trading Mode (Demo)")
 	fmt.Println("⚠️  This is a demonstration - no real trades will be executed")
-	
+
 	config := MLConfig{
 		LookbackPeriod:    lookbackPeriod,
 		TrainingRatio:     0.9,
@@ -472,9 +478,9 @@ func runMLLiveTrading(symbol string, lookbackPeriod, minTrainingPeriod, retraini
 	}
 
 	mlModel := NewMLModel(config)
-	
+
 	fmt.Println("📊 Collecting initial training data...")
-	
+
 	// Initial training
 	klines, err := binanceClient.fetchKlines(symbol, "15m", lookbackPeriod)
 	if err != nil {
@@ -493,7 +499,9 @@ func runMLLiveTrading(symbol string, lookbackPeriod, minTrainingPeriod, retraini
 		if i+5 < len(klines) {
 			currentPrice, _ := strconv.ParseFloat(klines[i].Close, 64)
 			futurePrice, _ := strconv.ParseFloat(klines[i+5].Close, 64)
-			features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			if currentPrice != 0 {
+				features.FutureReturn = (futurePrice - currentPrice) / currentPrice
+			}
 		}
 
 		mlModel.AddTrainingData(*features)
@@ -521,35 +529,58 @@ func runMLLiveTrading(symbol string, lookbackPeriod, minTrainingPeriod, retraini
 
 		// Update time series
 		ts := buildTimeSeries(klines)
-		
+
 		// Extract current features
 		features := mlModel.ExtractFeatures(ts, len(klines)-1)
 		if features != nil {
 			prediction := mlModel.Predict(*features)
-			
+
 			// Display prediction
 			currentPrice := klines[len(klines)-1].Close
 			now := time.Now()
-			
-			fmt.Printf("\n[%s] %s: $%s\n", 
+
+			fmt.Printf("\n[%s] %s: $%s\n",
 				now.Format("15:04:05"), symbol, currentPrice)
-			fmt.Printf("🤖 ML Prediction: %s (Confidence: %.2f)\n", 
+			fmt.Printf("🤖 ML Prediction: %s (Confidence: %.2f)\n",
 				prediction.Direction, prediction.Confidence)
 			fmt.Printf("📈 Expected Return: %.4f\n", prediction.ExpectedReturn)
-			
+
 			// Check if retraining is needed
 			if mlModel.ShouldRetrain() {
 				fmt.Println("🔄 Retraining model with new data...")
-				// In a real system, you'd update training data here
-				err = mlModel.TrainModel()
-				if err != nil {
-					log.Printf("Retraining failed: %v", err)
+				// Rebuild training dataset from the most recent lookback window
+				latestKlines, ferr := binanceClient.fetchKlines(symbol, "15m", lookbackPeriod)
+				if ferr != nil {
+					log.Printf("Error fetching data for retraining: %v", ferr)
 				} else {
-					fmt.Println("✅ Model retrained successfully")
+					trainTS := buildTimeSeries(latestKlines)
+					// reset existing dataset and stats
+					mlModel.features = make([]TradingFeatures, 0)
+					mlModel.featureStats = make(map[string]FeatureStats)
+					// rebuild features with targets (5-period horizon)
+					for i := mlModel.config.FeatureWindow; i < len(latestKlines)-5; i++ {
+						f := mlModel.ExtractFeatures(trainTS, i)
+						if f == nil {
+							continue
+						}
+						curr, _ := strconv.ParseFloat(latestKlines[i].Close, 64)
+						fut, _ := strconv.ParseFloat(latestKlines[i+5].Close, 64)
+						if curr != 0 {
+							f.FutureReturn = (fut - curr) / curr
+						}
+						mlModel.AddTrainingData(*f)
+					}
+					// train
+					err = mlModel.TrainModel()
+					if err != nil {
+						log.Printf("Retraining failed: %v", err)
+					} else {
+						fmt.Println("✅ Model retrained successfully")
+					}
 				}
 			}
 		}
-		
+
 		// Wait for next cycle
 		fmt.Printf("⏰ Waiting %d minutes for next prediction...\n", retrainingPeriod/4)
 		time.Sleep(time.Duration(retrainingPeriod/4) * time.Minute)
@@ -559,22 +590,23 @@ func runMLLiveTrading(symbol string, lookbackPeriod, minTrainingPeriod, retraini
 // buildTimeSeries converts klines to techan TimeSeries
 func buildTimeSeries(klines []BinanceKline) *techan.TimeSeries {
 	ts := techan.NewTimeSeries()
-	
+
 	for _, kline := range klines {
 		open, _ := strconv.ParseFloat(kline.Open, 64)
 		high, _ := strconv.ParseFloat(kline.High, 64)
 		low, _ := strconv.ParseFloat(kline.Low, 64)
 		close, _ := strconv.ParseFloat(kline.Close, 64)
-		
+		vol, _ := strconv.ParseFloat(kline.Volume, 64)
+
 		period := techan.NewTimePeriod(time.UnixMilli(kline.OpenTime), time.Minute*15)
 		c := techan.NewCandle(period)
 		c.OpenPrice = big.NewDecimal(open)
 		c.MaxPrice = big.NewDecimal(high)
 		c.MinPrice = big.NewDecimal(low)
 		c.ClosePrice = big.NewDecimal(close)
-		c.Volume = big.NewDecimal(0)
+		c.Volume = big.NewDecimal(vol)
 		ts.AddCandle(c)
 	}
-	
+
 	return ts
 }
